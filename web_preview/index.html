@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Receipt Scanner - Quét Hóa Đơn & Quản Lý Chi Tiêu</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0066FF;
+      --primary-dark: #0044B8;
+      --secondary: #00C853;
+      --bg: #F8F9FD;
+      --card-bg: #FFFFFF;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --food: #FF5252;
+      --study: #448AFF;
+      --travel: #FFB300;
+      --gear: #7C4DFF;
+      --entertainment: #00E676;
+      --other: #78909C;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background-color: #111827;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: var(--text);
+    }
+
+    /* Mobile Device Frame Mockup */
+    .phone-container {
+      width: 412px;
+      height: 870px;
+      background: var(--bg);
+      border-radius: 44px;
+      border: 12px solid #1F2937;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Dynamic Island Notch */
+    .notch {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 28px;
+      background: #000;
+      border-radius: 14px;
+      z-index: 100;
+    }
+
+    .app-bar {
+      height: 70px;
+      padding-top: 35px;
+      padding-left: 20px;
+      padding-right: 20px;
+      background: #FFF;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #E2E8F0;
+    }
+
+    .app-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .app-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      padding-bottom: 90px;
+    }
+
+    /* Cards */
+    .total-card {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-radius: 20px;
+      padding: 20px;
+      color: #FFF;
+      box-shadow: 0 10px 20px rgba(0, 102, 255, 0.25);
+      margin-bottom: 16px;
+    }
+
+    .total-title {
+      font-size: 12px;
+      opacity: 0.85;
+      font-weight: 500;
+    }
+
+    .total-amount {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 6px 0 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      background: #FFF;
+      font-size: 14px;
+      margin-bottom: 14px;
+      outline: none;
+    }
+
+    .category-pills {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      border: 1px solid #CBD5E1;
+      background: #FFF;
+      transition: all 0.2s;
+    }
+
+    .pill.active {
+      background: var(--primary);
+      color: #FFF;
+      border-color: var(--primary);
+    }
+
+    /* Transactions */
+    .tx-item {
+      background: #FFF;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    }
+
+    .tx-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .tx-info {
+      flex: 1;
+    }
+
+    .tx-merchant {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .tx-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .tx-amount {
+      font-size: 14px;
+      font-weight: 700;
+      color: #D32F2F;
+    }
+
+    /* FAB */
+    .fab {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      background: var(--primary);
+      color: #FFF;
+      padding: 14px 22px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 8px 20px rgba(0, 102, 255, 0.4);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      z-index: 10;
+    }
+
+    /* Canvas Section */
+    .canvas-card {
+      background: #FFF;
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .canvas-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .canvas-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Camera Scanner Overlay View */
+    .scanner-view {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+    }
+
+    .scanner-view.active {
+      display: flex;
+    }
+
+    .scanner-header {
+      padding: 40px 20px 10px;
+      display: flex;
+      justify-content: space-between;
+      color: #FFF;
+      align-items: center;
+    }
+
+    .scan-area {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scan-frame {
+      width: 82%;
+      height: 60%;
+      border: 2px dashed rgba(255,255,255,0.4);
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: #00E676;
+      box-shadow: 0 0 15px #00E676;
+      animation: scan 2s infinite ease-in-out;
+    }
+
+    @keyframes scan {
+      0% { top: 0%; }
+      50% { top: 96%; }
+      100% { top: 0%; }
+    }
+
+    .scanner-controls {
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding-bottom: 20px;
+    }
+
+    .shutter-btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 4px solid #FFF;
+      background: transparent;
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    .shutter-inner {
+      width: 100%;
+      height: 100%;
+      background: #FFF;
+      border-radius: 50%;
+    }
+
+    /* Review Screen Modal */
+    .review-modal {
+      position: absolute;
+      inset: 0;
+      background: #FFF;
+      z-index: 300;
+      display: none;
+      flex-direction: column;
+      padding: 40px 20px 20px;
+    }
+
+    .review-modal.active {
+      display: flex;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #CBD5E1;
+      font-size: 14px;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: #FFF;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="phone-container">
+    <div class="notch"></div>
+
+    <!-- App Header -->
+    <div class="app-bar">
+      <span class="app-title">Quản Lý Hóa Đơn Chi Tiêu</span>
+      <button onclick="toggleAnalyticsView()" style="border:none; background:none; color:var(--primary); font-weight:700; cursor:pointer;">
+        📈 Thống Kê
+      </button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="app-content" id="mainContent">
+      <div class="total-card">
+        <div class="total-title">Tổng chi tiêu hóa đơn tháng này</div>
+        <div class="total-amount" id="totalAmountText">785.000 đ</div>
+        <div class="badge">Google ML Kit Sub-100ms Heuristic OCR</div>
+      </div>
+
+      <!-- Canvas Charts View -->
+      <div class="canvas-card">
+        <div class="canvas-title">Chi Tiêu Theo Tuần (T2 - CN)</div>
+        <div class="canvas-sub">CustomPainter Canvas - No 3rd party chart libraries</div>
+        <canvas id="weeklyBarCanvas" width="340" height="150"></canvas>
+      </div>
+
+      <div class="canvas-card">
+        <div class="canvas-title">Cơ Cấu Chi Tiêu (Custom Donut Canvas)</div>
+        <div class="canvas-sub">Tỷ lệ phân bổ chi tiêu theo danh mục</div>
+        <canvas id="donutCanvas" width="220" height="220"></canvas>
+      </div>
+
+      <input type="text" class="search-input" id="searchInput" placeholder="🔍 Tìm kiếm siêu thị, hóa đơn, ghi chú..." oninput="renderTransactions()">
+
+      <div class="category-pills" id="categoryPills">
+        <!-- Rendered via JS -->
+      </div>
+
+      <div style="font-weight: 700; font-size: 15px; margin-bottom: 12px;">Lịch Sử Hóa Đơn</div>
+      <div id="txList">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- FAB button -->
+    <button class="fab" onclick="openCamera()">
+      📷 Quét Hóa Đơn
+    </button>
+
+    <!-- Camera Scanner View -->
+    <div class="scanner-view" id="scannerView">
+      <div class="scanner-header">
+        <button onclick="closeCamera()" style="background:none; border:none; color:#FFF; font-size:20px; cursor:pointer;">✕</button>
+        <span style="font-weight:700;">Quét Hóa Đơn Chi Tiêu</span>
+        <button onclick="toggleFlash()" id="flashBtn" style="background:none; border:none; color:#FFF; font-size:20px; cursor:pointer;">⚡</button>
+      </div>
+      <div class="scan-area">
+        <div class="scan-frame">
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      <div class="scanner-controls">
+        <button style="background:none; border:none; color:#FFF; font-size:24px; cursor:pointer;" onclick="simulateGalleryPick()">🖼️</button>
+        <button class="shutter-btn" onclick="captureReceipt()">
+          <div class="shutter-inner"></div>
+        </button>
+        <button style="background:none; border:none; color:#FFF; font-size:24px; cursor:pointer;" onclick="captureReceipt()">📄</button>
+      </div>
+    </div>
+
+    <!-- Review Screen Modal -->
+    <div class="review-modal" id="reviewModal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 style="font-size:16px;">Xác Nhận Hóa Đơn OCR</h3>
+        <button onclick="closeReview()" style="border:none; background:none; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:10px; background:#E3F2FD; border-radius:10px; color:#0D47A1; font-size:11px; margin-bottom:16px;">
+        ⚡ Trích xuất bằng ML Kit Heuristics Engine. Kiểm tra thông tin trước khi lưu.
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tên Cửa Hàng / Siêu Thị</label>
+        <input type="text" class="form-input" id="editMerchant">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tổng Tiền (VNĐ)</label>
+        <input type="number" class="form-input" id="editAmount" style="font-size:18px; font-weight:700; color:var(--primary);">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ngày Giao Dịch</label>
+        <input type="date" class="form-input" id="editDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Danh Mục</label>
+        <select class="form-input" id="editCategory">
+          <option value="food">Ăn uống</option>
+          <option value="study">Học tập</option>
+          <option value="travel">Di chuyển</option>
+          <option value="gear">Thiết bị & Dụng cụ</option>
+          <option value="entertainment">Giải trí</option>
+          <option value="other">Khác</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ghi Chú Chi Tiết</label>
+        <input type="text" class="form-input" id="editNote" placeholder="Mô tả mua sắm...">
+      </div>
+      <button class="btn-submit" onclick="saveNewReceipt()">Lưu Hóa Đơn Vào SQLite DB</button>
+    </div>
+  </div>
+
+  <script>
+    // Initial State Data
+    let transactions = [
+      { id: 1, merchant: 'Siêu thị WinMart', amount: 150000, date: '2026-10-09', category: 'food', note: 'Mì gói, sữa tươi & bánh mì' },
+      { id: 2, merchant: 'Nhà sách Fahasa', amount: 125000, date: '2026-10-08', category: 'study', note: 'Sách giáo trình & bút bi' },
+      { id: 3, merchant: 'Chuyến xe GrabBike', amount: 35000, date: '2026-10-07', category: 'travel', note: 'Di chuyển từ KTX' },
+      { id: 4, merchant: 'Cửa hàng Phong Vũ', amount: 280000, date: '2026-10-06', category: 'gear', note: 'Chuột máy tính không dây' },
+      { id: 5, merchant: 'Rạp chiếu phim CGV', amount: 110000, date: '2026-10-05', category: 'entertainment', note: 'Vé phim cuối tuần' },
+      { id: 6, merchant: 'Cây xăng Petrolimex', amount: 85000, date: '2026-10-04', category: 'travel', note: 'Đổ xăng A95' }
+    ];
+
+    const categoryNames = {
+      food: 'Ăn uống',
+      study: 'Học tập',
+      travel: 'Di chuyển',
+      gear: 'Thiết bị & Dụng cụ',
+      entertainment: 'Giải trí',
+      other: 'Khác'
+    };
+
+    const categoryColors = {
+      food: '#FF5252',
+      study: '#448AFF',
+      travel: '#FFB300',
+      gear: '#7C4DFF',
+      entertainment: '#00E676',
+      other: '#78909C'
+    };
+
+    let activeFilter = 'all';
+
+    function formatVND(val) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val).replace('₫', 'đ');
+    }
+
+    function initCategoryPills() {
+      const container = document.getElementById('categoryPills');
+      let html = `<div class="pill ${activeFilter === 'all' ? 'active' : ''}" onclick="filterCat('all')">Tất cả</div>`;
+      for (let key in categoryNames) {
+        html += `<div class="pill ${activeFilter === key ? 'active' : ''}" onclick="filterCat('${key}')">${categoryNames[key]}</div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function filterCat(cat) {
+      activeFilter = cat;
+      initCategoryPills();
+      renderTransactions();
+    }
+
+    function renderTransactions() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const listContainer = document.getElementById('txList');
+
+      let filtered = transactions.filter(t => {
+        const matchCat = activeFilter === 'all' || t.category === activeFilter;
+        const matchQuery = t.merchant.toLowerCase().includes(query) || (t.note && t.note.toLowerCase().includes(query));
+        return matchCat && matchQuery;
+      });
+
+      let total = filtered.reduce((sum, t) => sum + t.amount, 0);
+      document.getElementById('totalAmountText').innerText = formatVND(total);
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `<div style="text-align:center; padding:30px; color:#94A3B8;">Chưa có hóa đơn nào</div>`;
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(t => `
+        <div class="tx-item">
+          <div class="tx-icon" style="background:${categoryColors[t.category]}20; color:${categoryColors[t.category]}">
+            💳
+          </div>
+          <div class="tx-info">
+            <div class="tx-merchant">${t.merchant}</div>
+            <div class="tx-date">${t.date} • <span style="color:${categoryColors[t.category]}; font-weight:600;">${categoryNames[t.category]}</span></div>
+            ${t.note ? `<div style="font-size:11px; color:#64748B; font-style:italic;">${t.note}</div>` : ''}
+          </div>
+          <div class="tx-amount">-${formatVND(t.amount)}</div>
+        </div>
+      `).join('');
+
+      drawWeeklyBarChart();
+      drawDonutChart();
+    }
+
+    // HTML5 Canvas Painter Functions
+    function drawWeeklyBarChart() {
+      const canvas = document.getElementById('weeklyBarCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+      const values = [150000, 125000, 35000, 280000, 110000, 85000, 0];
+      const maxVal = Math.max(...values, 100000) * 1.2;
+
+      const barWidth = 22;
+      const stepX = canvas.width / 7;
+      const chartHeight = 110;
+      const topMargin = 15;
+
+      // Draw Grid Lines
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.lineWidth = 1;
+      for(let i = 0; i <= 2; i++) {
+        let y = topMargin + (chartHeight * i / 2);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < 7; i++) {
+        let x = stepX * i + (stepX - barWidth) / 2;
+        let h = (values[i] / maxVal) * chartHeight;
+        let y = topMargin + chartHeight - h;
+
+        // Slot bg
+        ctx.fillStyle = '#F1F5F9';
+        ctx.beginPath();
+        ctx.roundRect(x, topMargin, barWidth, chartHeight, 6);
+        ctx.fill();
+
+        // Bar Fill
+        if (h > 0) {
+          ctx.fillStyle = '#0066FF';
+          ctx.beginPath();
+          ctx.roundRect(x, y, barWidth, h, 6);
+          ctx.fill();
+        }
+
+        // Text Day Label
+        ctx.fillStyle = '#64748B';
+        ctx.font = '500 11px "Plus Jakarta Sans"';
+        ctx.textAlign = 'center';
+        ctx.fillText(days[i], x + barWidth / 2, canvas.height - 4);
+      }
+    }
+
+    function drawDonutChart() {
+      const canvas = document.getElementById('donutCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      let totals = {};
+      let sum = 0;
+      transactions.forEach(t => {
+        totals[t.category] = (totals[t.category] || 0) + t.amount;
+        sum += t.amount;
+      });
+
+      if (sum === 0) return;
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 80;
+      const strokeWidth = 26;
+
+      let startAngle = -Math.PI / 2;
+
+      for (let cat in categoryColors) {
+        let amt = totals[cat] || 0;
+        if (amt === 0) continue;
+
+        let sweepAngle = (amt / sum) * 2 * Math.PI;
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, startAngle, startAngle + sweepAngle);
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeStyle = categoryColors[cat];
+        ctx.stroke();
+
+        startAngle += sweepAngle;
+      }
+
+      // Center Text
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#64748B';
+      ctx.font = '500 11px "Plus Jakarta Sans"';
+      ctx.fillText('Tổng chi tiêu', centerX, centerY - 8);
+
+      ctx.fillStyle = '#1E293B';
+      ctx.font = '700 14px "Plus Jakarta Sans"';
+      ctx.fillText(formatVND(sum), centerX, centerY + 12);
+    }
+
+    // Camera & Scanner Actions
+    function openCamera() {
+      document.getElementById('scannerView').classList.add('active');
+    }
+
+    function closeCamera() {
+      document.getElementById('scannerView').classList.remove('active');
+    }
+
+    function toggleFlash() {
+      const btn = document.getElementById('flashBtn');
+      btn.style.color = btn.style.color === 'yellow' ? '#FFF' : 'yellow';
+    }
+
+    function captureReceipt() {
+      closeCamera();
+      // Simulate Heuristic Parsing of captured receipt
+      document.getElementById('editMerchant').value = 'Siêu Thị WinMart+';
+      document.getElementById('editAmount').value = '95000';
+      document.getElementById('editDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('editCategory').value = 'food';
+      document.getElementById('editNote').value = 'Mì Hảo Hảo & Sữa tươi Vinamilk';
+      document.getElementById('reviewModal').classList.add('active');
+    }
+
+    function simulateGalleryPick() {
+      captureReceipt();
+    }
+
+    function closeReview() {
+      document.getElementById('reviewModal').classList.remove('active');
+    }
+
+    function saveNewReceipt() {
+      const merchant = document.getElementById('editMerchant').value;
+      const amount = parseFloat(document.getElementById('editAmount').value) || 0;
+      const date = document.getElementById('editDate').value;
+      const category = document.getElementById('editCategory').value;
+      const note = document.getElementById('editNote').value;
+
+      if (!merchant || amount <= 0) {
+        alert('Vui lòng nhập tên cửa hàng và số tiền hợp lệ!');
+        return;
+      }
+
+      transactions.unshift({
+        id: Date.now(),
+        merchant,
+        amount,
+        date,
+        category,
+        note
+      });
+
+      closeReview();
+      renderTransactions();
+    }
+
+    function toggleAnalyticsView() {
+      alert('Đang xem bản đồ thống kê Canvas!');
+    }
+
+    // Init App
+    initCategoryPills();
+    renderTransactions();
+  </script>
+</body>
+</html>
