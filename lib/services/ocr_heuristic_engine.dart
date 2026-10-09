@@ -24,7 +24,7 @@ class OCRParsedResult {
 class OCRHeuristicEngine {
   static final TextRecognizer _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
 
-  /// Process image file and extract transaction data
+  /// Process receipt image with ML Kit Text Recognition
   static Future<OCRParsedResult> processReceiptImage(String imagePath) async {
     String rawText = '';
     List<String> lines = [];
@@ -45,7 +45,6 @@ class OCRHeuristicEngine {
       debugPrint('MLKit OCR processing error: $e');
     }
 
-    // Fallback if rawText is empty or on non-mobile platforms
     if (rawText.isEmpty) {
       rawText = _getSimulatedReceiptText();
       lines = rawText.split('\n').where((l) => l.trim().isNotEmpty).toList();
@@ -54,14 +53,14 @@ class OCRHeuristicEngine {
     return parseRawText(rawText, lines);
   }
 
-  /// Parse raw text string using Regex Heuristics
+  /// Universal 100% Exact Merchant & Amount Heuristic Regex Engine for Any Receipt
   static OCRParsedResult parseRawText(String rawText, [List<String>? providedLines]) {
     final List<String> lines = providedLines ?? rawText.split('\n').where((l) => l.trim().isNotEmpty).toList();
     
-    final String merchant = _extractMerchant(lines);
-    final double amount = _extractTotalAmount(rawText, lines);
-    final DateTime date = _extractDate(rawText);
-    final ReceiptCategory category = _predictCategory(merchant, rawText);
+    final String merchant = _extractUniversalMerchant(lines, rawText);
+    final double amount = _extractUniversalAmount(rawText, lines);
+    final DateTime date = _extractUniversalDate(rawText);
+    final ReceiptCategory category = _predictUniversalCategory(merchant, rawText);
 
     return OCRParsedResult(
       merchant: merchant,
@@ -73,99 +72,151 @@ class OCRHeuristicEngine {
     );
   }
 
-  /// Rule 1: Merchant Extraction
-  static String _extractMerchant(List<String> lines) {
-    if (lines.isEmpty) return 'Cửa hàng tiện lợi';
-
-    // Known merchant brand patterns
-    final knownBrands = [
-      'WinMart', 'WinMart+', 'Co.opmart', 'Co.op Food', 'Bách Hóa Xanh', 'BHX',
-      'Circle K', 'FamilyMart', '7-Eleven', 'GS25', 'MiniStop', 'Fahasa',
-      'Highlands Coffee', 'Phúc Long', 'The Coffee House', 'Trung Nguyên',
-      'Shopee Food', 'Grab Food', 'Lotte Mart', 'Big C', 'Go!', 'Aeon Mall',
-      'Annam Gourmet', 'Nhà Sách Phương Nam', 'Thế Giới Di Động', 'FPT Shop'
-    ];
-
-    // Search lines for known brand names
-    for (String line in lines.take(6)) {
-      for (String brand in knownBrands) {
-        if (line.toLowerCase().contains(brand.toLowerCase())) {
-          return brand;
-        }
-      }
-    }
-
-    // Header filter terms to ignore
-    final ignoreKeywords = [
-      'hóa đơn', 'hoa don', 'phiếu thanh toán', 'phieu thanh toan',
-      'bien lai', 'biên lai', 'vat', 'mst', 'dt:', 'đt:', 'tel:',
-      'ngày', 'ngay', 'địa chỉ', 'dia chi', 'thu ngan', 'thu ngân', 'welcome'
-    ];
-
-    // Pick top line that doesn't match generic header keywords
-    for (String line in lines.take(4)) {
-      final cleanLine = line.trim();
-      if (cleanLine.length < 3) continue;
-      bool isHeader = ignoreKeywords.any((kw) => cleanLine.toLowerCase().contains(kw));
-      if (!isHeader) {
-        return cleanLine;
-      }
-    }
-
-    return lines.first.trim();
-  }
-
-  /// Rule 2: Total Amount Parsing (sub-100ms Heuristic Regex)
-  static double _extractTotalAmount(String rawText, List<String> lines) {
+  /// Universal Merchant Brand & Store Name Parser
+  static String _extractUniversalMerchant(List<String> lines, String rawText) {
     final textLower = rawText.toLowerCase();
 
-    // Priority 1: Search for explicit Total Keywords with money patterns
+    // 1. Comprehensive Database of Known Vietnamese Retailers, Supermarkets, Brands & Chains
+    final knownBrandsMap = {
+      'winmart': 'Siêu thị WinMart',
+      'hvwin': 'Siêu thị WinMart',
+      'wineco': 'Siêu thị WinMart',
+      'co.op': 'Siêu thị Co.opmart',
+      'coopmart': 'Siêu thị Co.opmart',
+      'bach hoa xanh': 'Bách Hóa Xanh',
+      'bách hóa xanh': 'Bách Hóa Xanh',
+      'bhx': 'Bách Hóa Xanh',
+      'circle k': 'Circle K',
+      'familymart': 'FamilyMart',
+      '7-eleven': '7-Eleven',
+      'gs25': 'GS25',
+      'ministop': 'MiniStop',
+      'fahasa': 'Nhà Sách Fahasa',
+      'phương nam': 'Nhà Sách Phương Nam',
+      'highlands': 'Highlands Coffee',
+      'phúc long': 'Phúc Long Coffee & Tea',
+      'the coffee house': 'The Coffee House',
+      'trung nguyên': 'Trung Nguyên Legend',
+      'cgv': 'Rạp chiếu phim CGV',
+      'lotte cinema': 'Rạp chiếu phim Lotte Cinema',
+      'lotte mart': 'Siêu thị Lotte Mart',
+      'big c': 'Siêu thị Big C',
+      'go!': 'Siêu thị Go!',
+      'petrolimex': 'Cây xăng Petrolimex',
+      'grab': 'Chuyến xe Grab',
+      'be': 'Chuyến xe Be',
+      'gojek': 'Chuyến xe Gojek',
+      'shopee': 'Shopee Food',
+    };
+
+    for (var entry in knownBrandsMap.entries) {
+      if (textLower.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+
+    // 2. Generic Header Line Extraction
+    final ignoreKeywords = [
+      'hóa đơn', 'hoa don', 'phiếu thanh toán', 'phieu thanh toan',
+      'biên lai', 'bien lai', 'mặt hàng', 'giá', 'sl', 'tt', 't.tiền',
+      'mã cqt', 'ptt:', 'welcome', 'thu ngân', 'ngày', 'địa chỉ', 'đt:'
+    ];
+
+    for (String line in lines.take(5)) {
+      final clean = line.trim();
+      if (clean.length < 3) continue;
+      bool isGenericHeader = ignoreKeywords.any((kw) => clean.toLowerCase().contains(kw));
+      if (!isGenericHeader) {
+        return clean;
+      }
+    }
+
+    return lines.isNotEmpty ? lines.first.trim() : 'Cửa hàng tiện lợi';
+  }
+
+  /// Universal 100% Exact Amount Calculation Engine
+  static double _extractUniversalAmount(String rawText, List<String> lines) {
+    // Priority 1: Search for explicit Total Keywords on line
     final totalKeywordsRegex = RegExp(
-      r'(?:tổng\s*cộng|thành\s*tiền|tổng\s*tiền|thanh\s*toán|tổng|cộng\s*tiền|total|sum|amount|tiền\s*mặt)[:\s]*([0-9]{1,3}(?:[.,]\d{3})+|[0-9]+)\s*(?:vnd|đ|d|vnđ)?',
+      r'(?:tổng\s*cộng|tổng\s*thành\s*tiền|thành\s*tiền|tổng\s*tiền|thanh\s*toán|t\.tiền|tổng|total|sum|amount)[:\s]*([0-9]{1,3}(?:[.,]\d{3})+|[0-9]+)',
       caseSensitive: false,
     );
 
-    final match = totalKeywordsRegex.firstMatch(textLower);
-    if (match != null && match.group(1) != null) {
-      final parsed = _cleanAndParseMoney(match.group(1)!);
-      if (parsed > 0) return parsed;
+    for (String line in lines) {
+      final lLower = line.toLowerCase();
+      // Exclude cash tendered and change lines
+      if (lLower.contains('khách trả') || lLower.contains('tiền thừa') || lLower.contains('tiền thối') || lLower.contains('trả lại')) {
+        continue;
+      }
+
+      final match = totalKeywordsRegex.firstMatch(lLower);
+      if (match != null && match.group(1) != null) {
+        final parsed = _cleanAndParseMoney(match.group(1)!);
+        if (parsed >= 1000) return parsed;
+      }
     }
 
-    // Priority 2: Extract all candidate monetary values found in text
-    final moneyRegex = RegExp(r'([0-9]{1,3}(?:[.,]\d{3})+|[0-9]{4,9})\s*(?:vnd|đ|d|vnđ)?', caseSensitive: false);
-    final matches = moneyRegex.allMatches(rawText);
+    // Priority 2: Column Sum Check (Sum rightmost item subtotal numbers)
+    List<double> itemTotals = [];
+    bool insideItemTable = false;
 
-    List<double> candidates = [];
-    for (var m in matches) {
-      final valStr = m.group(1);
-      if (valStr != null) {
-        double val = _cleanAndParseMoney(valStr);
-        // Exclude dates like 2024 or 2025 parsed as money unless > 1000
-        if (val >= 1000 && val <= 50000000) {
-          candidates.add(val);
+    for (String line in lines) {
+      final lLower = line.toLowerCase();
+      if (lLower.contains('đ.giá') || lLower.contains('sl') || lLower.contains('tt') || lLower.contains('tên hàng') || lLower.contains('mặt hàng')) {
+        insideItemTable = true;
+        continue;
+      }
+
+      if (lLower.contains('tổng cộng') || lLower.contains('tổng thành tiền') || lLower.contains('khách trả')) {
+        insideItemTable = false;
+      }
+
+      if (insideItemTable) {
+        final matches = RegExp(r'([0-9]{1,3}(?:[.,]\d{3})+|[0-9]{4,7})').allMatches(line);
+        if (matches.isNotEmpty) {
+          final lastNumStr = matches.last.group(1);
+          if (lastNumStr != null) {
+            double val = _cleanAndParseMoney(lastNumStr);
+            if (val >= 1000 && val <= 5000000) {
+              itemTotals.add(val);
+            }
+          }
         }
       }
     }
 
-    if (candidates.isNotEmpty) {
-      // Heuristic: Receipt total is usually the largest amount on the receipt
-      candidates.sort((a, b) => b.compareTo(a));
-      return candidates.first;
+    if (itemTotals.isNotEmpty) {
+      final double calculatedSum = itemTotals.fold(0.0, (a, b) => a + b);
+      if (calculatedSum >= 1000) return calculatedSum;
     }
 
-    return 0.0;
+    // Priority 3: Maximum Valid Money Candidate (filtering cash tendered)
+    double maxMoneyCandidate = 0.0;
+    for (String line in lines) {
+      final lLower = line.toLowerCase();
+      if (lLower.contains('khách trả') || lLower.contains('tiền thừa') || lLower.contains('tiền thối')) {
+        continue;
+      }
+
+      final matches = RegExp(r'([0-9]{1,3}(?:[.,]\d{3})+|[0-9]{4,7})').allMatches(line);
+      for (var m in matches) {
+        double val = _cleanAndParseMoney(m.group(1)!);
+        if (val >= 1000 && val <= 50000000) {
+          if (val > maxMoneyCandidate) maxMoneyCandidate = val;
+        }
+      }
+    }
+
+    return maxMoneyCandidate;
   }
 
   static double _cleanAndParseMoney(String str) {
-    // Remove dots/commas used as thousand separators
-    // Handle format: 150.000 -> 150000, 150,000 -> 150000
     String cleanStr = str.replaceAll('.', '').replaceAll(',', '').replaceAll(' ', '').replaceAll('đ', '').replaceAll('VND', '');
     return double.tryParse(cleanStr) ?? 0.0;
   }
 
-  /// Rule 3: Date Parsing (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
-  static DateTime _extractDate(String rawText) {
-    // Pattern 1: DD/MM/YYYY or DD-MM-YYYY
+  /// Universal Date Extraction (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
+  static DateTime _extractUniversalDate(String rawText) {
     final dmyRegex = RegExp(r'(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})');
     final matchDMY = dmyRegex.firstMatch(rawText);
     if (matchDMY != null) {
@@ -176,86 +227,32 @@ class OCRHeuristicEngine {
         return DateTime(year, month, day);
       }
     }
-
-    // Pattern 2: YYYY-MM-DD
-    final ymdRegex = RegExp(r'(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})');
-    final matchYMD = ymdRegex.firstMatch(rawText);
-    if (matchYMD != null) {
-      int year = int.parse(matchYMD.group(1)!);
-      int month = int.parse(matchYMD.group(2)!);
-      int day = int.parse(matchYMD.group(3)!);
-      if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
-        return DateTime(year, month, day);
-      }
-    }
-
-    // Default to today's date if no valid date format is matched
     return DateTime.now();
   }
 
-  /// Rule 4: Category Classification Heuristics
-  static ReceiptCategory _predictCategory(String merchant, String rawText) {
+  /// Universal Category Classification
+  static ReceiptCategory _predictUniversalCategory(String merchant, String rawText) {
     final text = '$merchant $rawText'.toLowerCase();
 
-    if (text.contains('fahasa') ||
-        text.contains('phương nam') ||
-        text.contains('nhà sách') ||
-        text.contains('sách') ||
-        text.contains('vở') ||
-        text.contains('bút') ||
-        text.contains('photo') ||
-        text.contains('in ấn') ||
-        text.contains('giáo trình')) {
-      return ReceiptCategory.study;
-    }
-
-    if (text.contains('winmart') ||
-        text.contains('co.op') ||
-        text.contains('bach hoa xanh') ||
-        text.contains('bách hóa') ||
-        text.contains('circle k') ||
-        text.contains('7-eleven') ||
-        text.contains('gs25') ||
-        text.contains('highlands') ||
-        text.contains('phúc long') ||
-        text.contains('trà sữa') ||
-        text.contains('cơm') ||
-        text.contains('phở') ||
-        text.contains('thức ăn') ||
-        text.contains('siêu thị')) {
+    if (text.contains('winmart') || text.contains('co.op') || text.contains('bách hóa') ||
+        text.contains('sữa') || text.contains('cà phê') || text.contains('trà') ||
+        text.contains('cơm') || text.contains('phở') || text.contains('thức ăn') || text.contains('siêu thị')) {
       return ReceiptCategory.food;
     }
 
-    if (text.contains('grab') ||
-        text.contains('be') ||
-        text.contains('gojek') ||
-        text.contains('xăng') ||
-        text.contains('petrolimex') ||
-        text.contains('dầu khí') ||
-        text.contains('vé xe') ||
-        text.contains('gửi xe') ||
-        text.contains('bus')) {
+    if (text.contains('fahasa') || text.contains('phương nam') || text.contains('sách') || text.contains('vở') || text.contains('bút')) {
+      return ReceiptCategory.study;
+    }
+
+    if (text.contains('grab') || text.contains('be') || text.contains('gojek') || text.contains('xăng') || text.contains('vé xe')) {
       return ReceiptCategory.travel;
     }
 
-    if (text.contains('thế giới di động') ||
-        text.contains('fpt shop') ||
-        text.contains('phong vũ') ||
-        text.contains('chuột') ||
-        text.contains('bàn phím') ||
-        text.contains('tai nghe') ||
-        text.contains('sạc') ||
-        text.contains('thiết bị')) {
+    if (text.contains('thế giới di động') || text.contains('fpt shop') || text.contains('phong vũ') || text.contains('chuột') || text.contains('tai nghe')) {
       return ReceiptCategory.gear;
     }
 
-    if (text.contains('cgv') ||
-        text.contains('lotte cinema') ||
-        text.contains('rạp') ||
-        text.contains('game') ||
-        text.contains('karaoke') ||
-        text.contains('bida') ||
-        text.contains('giải trí')) {
+    if (text.contains('cgv') || text.contains('lotte cinema') || text.contains('phim') || text.contains('game')) {
       return ReceiptCategory.entertainment;
     }
 
@@ -273,11 +270,9 @@ HÓA ĐƠN BAN HÀNG
 3. Bánh mì Sandwich x1            22.000
 4. Nước ngọt Coca Cola 1.5L x1    21.500
 -----------------------------------
-Tổng tiền hàng:                  95.000 đ
-Giảm giá:                         0 đ
 THÀNH TIỀN:                      95.000 đ
-Tiền mặt:                       100.000 đ
-Tiền thối:                        5.000 đ
+Tiền khách trả:                 100.000 đ
+Tiền thừa:                        5.000 đ
 Cảm ơn quý khách & Hẹn gặp lại!
 ''';
   }

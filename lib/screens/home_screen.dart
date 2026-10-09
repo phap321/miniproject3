@@ -241,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontWeight: FontWeight.bold,
                             color: _selectedCategoryFilter == null
                                 ? Colors.white
-                                : Colors.black80,
+                                : Colors.black87,
                           ),
                         ),
                       ),

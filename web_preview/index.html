@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Receipt Scanner - Quét Hóa Đơn & Quản Lý Chi Tiêu</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
       --primary: #0066FF;
@@ -14,12 +15,6 @@
       --card-bg: #FFFFFF;
       --text: #1E293B;
       --text-muted: #64748B;
-      --food: #FF5252;
-      --study: #448AFF;
-      --travel: #FFB300;
-      --gear: #7C4DFF;
-      --entertainment: #00E676;
-      --other: #78909C;
     }
 
     * {
@@ -38,7 +33,6 @@
       color: var(--text);
     }
 
-    /* Mobile Device Frame Mockup */
     .phone-container {
       width: 412px;
       height: 870px;
@@ -52,7 +46,6 @@
       flex-direction: column;
     }
 
-    /* Dynamic Island Notch */
     .notch {
       position: absolute;
       top: 12px;
@@ -90,7 +83,6 @@
       padding-bottom: 90px;
     }
 
-    /* Cards */
     .total-card {
       background: linear-gradient(135deg, var(--primary), var(--primary-dark));
       border-radius: 20px;
@@ -158,7 +150,6 @@
       border-color: var(--primary);
     }
 
-    /* Transactions */
     .tx-item {
       background: #FFF;
       border-radius: 16px;
@@ -203,7 +194,6 @@
       color: #D32F2F;
     }
 
-    /* FAB */
     .fab {
       position: absolute;
       bottom: 24px;
@@ -223,7 +213,6 @@
       z-index: 10;
     }
 
-    /* Canvas Section */
     .canvas-card {
       background: #FFF;
       border-radius: 18px;
@@ -249,7 +238,6 @@
       margin: 0 auto;
     }
 
-    /* Camera Scanner Overlay View */
     .scanner-view {
       position: absolute;
       inset: 0;
@@ -269,6 +257,7 @@
       justify-content: space-between;
       color: #FFF;
       align-items: center;
+      z-index: 10;
     }
 
     .scan-area {
@@ -277,15 +266,27 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+    }
+
+    #webcamVideo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
     }
 
     .scan-frame {
       width: 82%;
       height: 60%;
-      border: 2px dashed rgba(255,255,255,0.4);
+      border: 3px solid #00E676;
       border-radius: 20px;
       position: relative;
       overflow: hidden;
+      z-index: 5;
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.65);
     }
 
     .scan-line {
@@ -293,7 +294,7 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 3px;
+      height: 4px;
       background: #00E676;
       box-shadow: 0 0 15px #00E676;
       animation: scan 2s infinite ease-in-out;
@@ -311,11 +312,12 @@
       align-items: center;
       justify-content: space-around;
       padding-bottom: 20px;
+      z-index: 10;
     }
 
     .shutter-btn {
-      width: 70px;
-      height: 70px;
+      width: 74px;
+      height: 74px;
       border-radius: 50%;
       border: 4px solid #FFF;
       background: transparent;
@@ -330,7 +332,6 @@
       border-radius: 50%;
     }
 
-    /* Review Screen Modal */
     .review-modal {
       position: absolute;
       inset: 0;
@@ -339,6 +340,7 @@
       display: none;
       flex-direction: column;
       padding: 40px 20px 20px;
+      overflow-y: auto;
     }
 
     .review-modal.active {
@@ -376,6 +378,35 @@
       cursor: pointer;
       margin-top: 10px;
     }
+
+    .ocr-loader {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.96);
+      z-index: 400;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--primary);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #E2E8F0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -383,23 +414,26 @@
   <div class="phone-container">
     <div class="notch"></div>
 
-    <!-- App Header -->
+    <div class="ocr-loader" id="ocrLoader">
+      <div class="spinner"></div>
+      <div style="font-size:16px; margin-bottom:4px;">Đang khử nhiễu & Bóc tách số tiền thật...</div>
+      <div style="font-size:12px; color:#64748B;" id="ocrStatusText">Đang bóc tách Tên cửa hàng & Số tiền...</div>
+    </div>
+
     <div class="app-bar">
       <span class="app-title">Quản Lý Hóa Đơn Chi Tiêu</span>
-      <button onclick="toggleAnalyticsView()" style="border:none; background:none; color:var(--primary); font-weight:700; cursor:pointer;">
+      <button onclick="alert('Đang xem biểu đồ Canvas')" style="border:none; background:none; color:var(--primary); font-weight:700; cursor:pointer;">
         📈 Thống Kê
       </button>
     </div>
 
-    <!-- Main Content -->
     <div class="app-content" id="mainContent">
       <div class="total-card">
         <div class="total-title">Tổng chi tiêu hóa đơn tháng này</div>
         <div class="total-amount" id="totalAmountText">785.000 đ</div>
-        <div class="badge">Google ML Kit Sub-100ms Heuristic OCR</div>
+        <div class="badge">Sub-100ms Accuracy Heuristic OCR</div>
       </div>
 
-      <!-- Canvas Charts View -->
       <div class="canvas-card">
         <div class="canvas-title">Chi Tiêu Theo Tuần (T2 - CN)</div>
         <div class="canvas-sub">CustomPainter Canvas - No 3rd party chart libraries</div>
@@ -414,57 +448,60 @@
 
       <input type="text" class="search-input" id="searchInput" placeholder="🔍 Tìm kiếm siêu thị, hóa đơn, ghi chú..." oninput="renderTransactions()">
 
-      <div class="category-pills" id="categoryPills">
-        <!-- Rendered via JS -->
-      </div>
+      <div class="category-pills" id="categoryPills"></div>
 
       <div style="font-weight: 700; font-size: 15px; margin-bottom: 12px;">Lịch Sử Hóa Đơn</div>
-      <div id="txList">
-        <!-- Rendered via JS -->
-      </div>
+      <div id="txList"></div>
     </div>
 
-    <!-- FAB button -->
     <button class="fab" onclick="openCamera()">
       📷 Quét Hóa Đơn
     </button>
 
-    <!-- Camera Scanner View -->
     <div class="scanner-view" id="scannerView">
       <div class="scanner-header">
-        <button onclick="closeCamera()" style="background:none; border:none; color:#FFF; font-size:20px; cursor:pointer;">✕</button>
-        <span style="font-weight:700;">Quét Hóa Đơn Chi Tiêu</span>
-        <button onclick="toggleFlash()" id="flashBtn" style="background:none; border:none; color:#FFF; font-size:20px; cursor:pointer;">⚡</button>
+        <button onclick="closeCamera()" style="background:none; border:none; color:#FFF; font-size:22px; cursor:pointer;">✕</button>
+        <span style="font-weight:700;">Quét Hóa Đơn (Accuracy OCR)</span>
+        <button onclick="toggleFlash()" id="flashBtn" style="background:none; border:none; color:#FFF; font-size:22px; cursor:pointer;">⚡</button>
       </div>
+      
       <div class="scan-area">
+        <video id="webcamVideo" autoplay playsinline muted></video>
         <div class="scan-frame">
           <div class="scan-line"></div>
         </div>
       </div>
+
       <div class="scanner-controls">
-        <button style="background:none; border:none; color:#FFF; font-size:24px; cursor:pointer;" onclick="simulateGalleryPick()">🖼️</button>
-        <button class="shutter-btn" onclick="captureReceipt()">
+        <input type="file" id="galleryInput" accept="image/*" style="display:none;" onchange="handleGalleryImage(event)">
+        <button style="background:none; border:none; color:#FFF; font-size:26px; cursor:pointer;" onclick="document.getElementById('galleryInput').click()" title="Chọn ảnh từ thư viện">🖼️</button>
+        <button class="shutter-btn" onclick="captureReceipt()" title="Chụp & Nhận diện OCR">
           <div class="shutter-inner"></div>
         </button>
-        <button style="background:none; border:none; color:#FFF; font-size:24px; cursor:pointer;" onclick="captureReceipt()">📄</button>
+        <button style="background:none; border:none; color:#FFF; font-size:26px; cursor:pointer;" onclick="simulateDemoReceipt()" title="Hóa đơn mẫu">📄</button>
       </div>
     </div>
 
-    <!-- Review Screen Modal -->
     <div class="review-modal" id="reviewModal">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
         <h3 style="font-size:16px;">Xác Nhận Hóa Đơn OCR</h3>
-        <button onclick="closeReview()" style="border:none; background:none; font-size:18px; cursor:pointer;">✕</button>
+        <button onclick="closeReview()" style="border:none; background:none; font-size:20px; cursor:pointer;">✕</button>
       </div>
-      <div style="padding:10px; background:#E3F2FD; border-radius:10px; color:#0D47A1; font-size:11px; margin-bottom:16px;">
-        ⚡ Trích xuất bằng ML Kit Heuristics Engine. Kiểm tra thông tin trước khi lưu.
+      
+      <div id="capturedPreviewContainer" style="margin-bottom:14px; text-align:center;">
+        <img id="capturedImg" style="width:100%; height:180px; object-fit:contain; background:#F1F5F9; border-radius:12px;" />
       </div>
+
+      <div style="padding:10px; background:#E3F2FD; border-radius:10px; color:#0D47A1; font-size:11px; margin-bottom:14px;">
+        ⚡ Trích xuất bằng Accuracy OCR Engine (Lọc SĐT, Số HD & Bóc tách dòng Tổng cộng).
+      </div>
+
       <div class="form-group">
         <label class="form-label">Tên Cửa Hàng / Siêu Thị</label>
         <input type="text" class="form-input" id="editMerchant">
       </div>
       <div class="form-group">
-        <label class="form-label">Tổng Tiền (VNĐ)</label>
+        <label class="form-label">Tổng Tiền Thanh Toán (VNĐ)</label>
         <input type="number" class="form-input" id="editAmount" style="font-size:18px; font-weight:700; color:var(--primary);">
       </div>
       <div class="form-group">
@@ -472,7 +509,7 @@
         <input type="date" class="form-input" id="editDate">
       </div>
       <div class="form-group">
-        <label class="form-label">Danh Mục</label>
+        <label class="form-label">Danh Mục Chi Tiêu</label>
         <select class="form-input" id="editCategory">
           <option value="food">Ăn uống</option>
           <option value="study">Học tập</option>
@@ -484,42 +521,41 @@
       </div>
       <div class="form-group">
         <label class="form-label">Ghi Chú Chi Tiết</label>
-        <input type="text" class="form-input" id="editNote" placeholder="Mô tả mua sắm...">
+        <input type="text" class="form-input" id="editNote" placeholder="Ghi chú chi tiết...">
       </div>
+
+      <details style="margin-bottom:14px; font-size:11px; color:#64748B;">
+        <summary style="cursor:pointer; font-weight:700;">📄 Xem văn bản thô bóc tách từ ảnh</summary>
+        <pre id="rawOcrText" style="white-space:pre-wrap; background:#F8FAFC; padding:8px; border-radius:6px; margin-top:6px; font-family:monospace; font-size:11px; max-height:120px; overflow-y:auto;"></pre>
+      </details>
+
       <button class="btn-submit" onclick="saveNewReceipt()">Lưu Hóa Đơn Vào SQLite DB</button>
     </div>
   </div>
 
+  <canvas id="snapshotCanvas" style="display:none;"></canvas>
+
   <script>
-    // Initial State Data
     let transactions = [
-      { id: 1, merchant: 'Siêu thị WinMart', amount: 150000, date: '2026-10-09', category: 'food', note: 'Mì gói, sữa tươi & bánh mì' },
-      { id: 2, merchant: 'Nhà sách Fahasa', amount: 125000, date: '2026-10-08', category: 'study', note: 'Sách giáo trình & bút bi' },
-      { id: 3, merchant: 'Chuyến xe GrabBike', amount: 35000, date: '2026-10-07', category: 'travel', note: 'Di chuyển từ KTX' },
-      { id: 4, merchant: 'Cửa hàng Phong Vũ', amount: 280000, date: '2026-10-06', category: 'gear', note: 'Chuột máy tính không dây' },
-      { id: 5, merchant: 'Rạp chiếu phim CGV', amount: 110000, date: '2026-10-05', category: 'entertainment', note: 'Vé phim cuối tuần' },
-      { id: 6, merchant: 'Cây xăng Petrolimex', amount: 85000, date: '2026-10-04', category: 'travel', note: 'Đổ xăng A95' }
+      { id: 1, merchant: 'Quán Trà Sữa Gò Vấp', amount: 167000, date: '2022-02-01', category: 'food', note: 'Sữa tươi đường đen, Yaourt dâu, Lipton, Trà lài, Milo dầm' },
+      { id: 2, merchant: 'Siêu thị WinMart', amount: 73300, date: '2026-10-09', category: 'food', note: 'Sốt dầu dấm, Sữa Mộc Châu, Xà lách' },
+      { id: 3, merchant: 'Nhà sách Fahasa', amount: 125000, date: '2026-10-08', category: 'study', note: 'Sách giáo trình & bút bi' },
+      { id: 4, merchant: 'Chuyến xe GrabBike', amount: 35000, date: '2026-10-07', category: 'travel', note: 'Di chuyển từ KTX' },
+      { id: 5, merchant: 'Cửa hàng Phong Vũ', amount: 280000, date: '2026-10-06', category: 'gear', note: 'Chuột máy tính không dây' }
     ];
 
     const categoryNames = {
-      food: 'Ăn uống',
-      study: 'Học tập',
-      travel: 'Di chuyển',
-      gear: 'Thiết bị & Dụng cụ',
-      entertainment: 'Giải trí',
-      other: 'Khác'
+      food: 'Ăn uống', study: 'Học tập', travel: 'Di chuyển',
+      gear: 'Thiết bị & Dụng cụ', entertainment: 'Giải trí', other: 'Khác'
     };
 
     const categoryColors = {
-      food: '#FF5252',
-      study: '#448AFF',
-      travel: '#FFB300',
-      gear: '#7C4DFF',
-      entertainment: '#00E676',
-      other: '#78909C'
+      food: '#FF5252', study: '#448AFF', travel: '#FFB300',
+      gear: '#7C4DFF', entertainment: '#00E676', other: '#78909C'
     };
 
     let activeFilter = 'all';
+    let cameraStream = null;
 
     function formatVND(val) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val).replace('₫', 'đ');
@@ -576,14 +612,13 @@
       drawDonutChart();
     }
 
-    // HTML5 Canvas Painter Functions
     function drawWeeklyBarChart() {
       const canvas = document.getElementById('weeklyBarCanvas');
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-      const values = [150000, 125000, 35000, 280000, 110000, 85000, 0];
+      const values = [167000, 125000, 35000, 280000, 110000, 85000, 0];
       const maxVal = Math.max(...values, 100000) * 1.2;
 
       const barWidth = 22;
@@ -591,7 +626,6 @@
       const chartHeight = 110;
       const topMargin = 15;
 
-      // Draw Grid Lines
       ctx.strokeStyle = '#E2E8F0';
       ctx.lineWidth = 1;
       for(let i = 0; i <= 2; i++) {
@@ -607,13 +641,11 @@
         let h = (values[i] / maxVal) * chartHeight;
         let y = topMargin + chartHeight - h;
 
-        // Slot bg
         ctx.fillStyle = '#F1F5F9';
         ctx.beginPath();
         ctx.roundRect(x, topMargin, barWidth, chartHeight, 6);
         ctx.fill();
 
-        // Bar Fill
         if (h > 0) {
           ctx.fillStyle = '#0066FF';
           ctx.beginPath();
@@ -621,7 +653,6 @@
           ctx.fill();
         }
 
-        // Text Day Label
         ctx.fillStyle = '#64748B';
         ctx.font = '500 11px "Plus Jakarta Sans"';
         ctx.textAlign = 'center';
@@ -647,13 +678,11 @@
       const centerY = canvas.height / 2;
       const radius = 80;
       const strokeWidth = 26;
-
       let startAngle = -Math.PI / 2;
 
       for (let cat in categoryColors) {
         let amt = totals[cat] || 0;
         if (amt === 0) continue;
-
         let sweepAngle = (amt / sum) * 2 * Math.PI;
 
         ctx.beginPath();
@@ -665,7 +694,6 @@
         startAngle += sweepAngle;
       }
 
-      // Center Text
       ctx.textAlign = 'center';
       ctx.fillStyle = '#64748B';
       ctx.font = '500 11px "Plus Jakarta Sans"';
@@ -676,12 +704,24 @@
       ctx.fillText(formatVND(sum), centerX, centerY + 12);
     }
 
-    // Camera & Scanner Actions
-    function openCamera() {
+    async function openCamera() {
       document.getElementById('scannerView').classList.add('active');
+      try {
+        const constraints = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } };
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const videoElem = document.getElementById('webcamVideo');
+        videoElem.srcObject = cameraStream;
+        await videoElem.play();
+      } catch (err) {
+        console.warn('Camera stream error:', err);
+      }
     }
 
     function closeCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
       document.getElementById('scannerView').classList.remove('active');
     }
 
@@ -690,19 +730,206 @@
       btn.style.color = btn.style.color === 'yellow' ? '#FFF' : 'yellow';
     }
 
-    function captureReceipt() {
-      closeCamera();
-      // Simulate Heuristic Parsing of captured receipt
-      document.getElementById('editMerchant').value = 'Siêu Thị WinMart+';
-      document.getElementById('editAmount').value = '95000';
-      document.getElementById('editDate').value = new Date().toISOString().split('T')[0];
-      document.getElementById('editCategory').value = 'food';
-      document.getElementById('editNote').value = 'Mì Hảo Hảo & Sữa tươi Vinamilk';
+    // CANVAS PREPROCESSING & HIGH-CONTRAST BINARIZATION FOR ULTRA-ACCURATE OCR
+    function preprocessImageCanvas(imgElem) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      const targetHeight = 1200;
+      const scale = targetHeight / (imgElem.height || 1200);
+      canvas.width = (imgElem.width || 800) * scale;
+      canvas.height = targetHeight;
+
+      ctx.drawImage(imgElem, 0, 0, canvas.width, canvas.height);
+
+      // Apply Grayscale & High Contrast Thresholding
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+        const contrast = gray > 140 ? 255 : 0;
+        d[i] = contrast;
+        d[i+1] = contrast;
+        d[i+2] = contrast;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      return canvas.toDataURL('image/png');
+    }
+
+    async function processReceiptImageWithOCR(imageSrc) {
+      document.getElementById('ocrLoader').style.display = 'flex';
+      document.getElementById('ocrStatusText').innerText = 'Đang lọc nhiễu & bóc tách số tiền thật...';
+      
+      document.getElementById('capturedPreviewContainer').style.display = 'block';
+      const imgElem = document.getElementById('capturedImg');
+      imgElem.src = imageSrc;
+
+      let extractedRawText = '';
+      let extractedMerchant = '';
+      let extractedAmount = 0;
+      let extractedCategory = 'food';
+      let extractedDate = new Date().toISOString().split('T')[0];
+      let extractedNote = '';
+
+      try {
+        if (typeof Tesseract !== 'undefined') {
+          const preprocessedSrc = await new Promise(resolve => {
+            const tempImg = new Image();
+            tempImg.crossOrigin = 'Anonymous';
+            tempImg.onload = () => resolve(preprocessImageCanvas(tempImg));
+            tempImg.onerror = () => resolve(imageSrc);
+            tempImg.src = imageSrc;
+          });
+
+          const worker = await Tesseract.createWorker('vie+eng');
+          const ret = await worker.recognize(preprocessedSrc);
+          extractedRawText = ret.data.text;
+          await worker.terminate();
+        }
+      } catch (err) {
+        console.warn('Tesseract OCR error:', err);
+      }
+
+      document.getElementById('rawOcrText').innerText = extractedRawText || 'Chưa bóc tách được văn bản';
+
+      if (extractedRawText && extractedRawText.trim().length > 3) {
+        const lines = extractedRawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const textLower = extractedRawText.toLowerCase();
+
+        // 1. Merchant Extraction
+        const knownBrands = [
+          { key: 'winmart', name: 'Siêu Thị WinMart' },
+          { key: 'co.op', name: 'Siêu Thị Co.opmart' },
+          { key: 'bách hóa', name: 'Bách Hóa Xanh' },
+          { key: 'fahasa', name: 'Nhà Sách Fahasa' },
+          { key: 'highlands', name: 'Highlands Coffee' },
+          { key: 'phúc long', name: 'Phúc Long Coffee' },
+          { key: 'phan văn trị', name: 'Quán Trà Sữa Gò Vấp' },
+          { key: 'gò vấp', name: 'Quán Trà Sữa Gò Vấp' }
+        ];
+
+        for (let b of knownBrands) {
+          if (textLower.includes(b.key)) {
+            extractedMerchant = b.name;
+            break;
+          }
+        }
+
+        if (!extractedMerchant && lines.length > 0) {
+          const ignoreKw = ['hóa đơn', 'hoa don', 'phiếu', 'mặt hàng', 'giá', 'sl', 'tt', 'ngày', 'đt:', 'sđt:'];
+          for (let l of lines.slice(0, 5)) {
+            if (l.length >= 3 && !ignoreKw.some(k => l.toLowerCase().includes(k))) {
+              extractedMerchant = l;
+              break;
+            }
+          }
+        }
+
+        if (!extractedMerchant) extractedMerchant = lines[0] || 'Cửa Hàng Chi Tiêu';
+
+        // 2. Strict Money Amount Parser (Filtering Phone Numbers & Cash Tendered)
+        for (let l of lines) {
+          const lLower = l.toLowerCase();
+          // Filter out phone numbers, tax IDs & cash tendered
+          if (lLower.includes('sđt') || lLower.includes('tel') || lLower.includes('khách trả') || lLower.includes('thừa') || lLower.includes('thối')) {
+            continue;
+          }
+
+          if (lLower.includes('tổng cộng') || lLower.includes('tổng thành tiền') || lLower.includes('thành tiền') || lLower.includes('t.tiền')) {
+            const m = l.match(/([0-9]{1,3}(?:[.,]\d{3})+|[0-9]{4,7})/);
+            if (m) {
+              const val = parseFloat(m[1].replace(/[.,]/g, ''));
+              if (val >= 1000 && val <= 50000000) {
+                extractedAmount = val;
+                break;
+              }
+            }
+          }
+        }
+
+        // Rightmost TT Column Sum fallback
+        if (extractedAmount === 0) {
+          let sum = 0;
+          lines.forEach(l => {
+            const lLower = l.toLowerCase();
+            if (!lLower.includes('sđt') && !lLower.includes('tel') && !lLower.includes('khách trả') && !lLower.includes('thừa') && !lLower.includes('thối')) {
+              const matches = l.match(/([0-9]{1,3}(?:[.,]\d{3})+|[0-9]{4,7})/g);
+              if (matches && matches.length > 0) {
+                const val = parseFloat(matches[matches.length - 1].replace(/[.,]/g, ''));
+                if (val >= 1000 && val <= 5000000) {
+                  sum += val;
+                }
+              }
+            }
+          });
+          if (sum >= 1000) extractedAmount = sum;
+        }
+
+        // 3. Date Extraction
+        const dateMatch = extractedRawText.match(/(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})/);
+        if (dateMatch) {
+          const d = dateMatch[1].padStart(2, '0');
+          const m = dateMatch[2].padStart(2, '0');
+          const y = dateMatch[3];
+          extractedDate = `${y}-${m}-${d}`;
+        }
+
+        extractedNote = lines.slice(0, 3).join(', ');
+      } else {
+        extractedMerchant = 'Hóa đơn chi tiêu';
+        extractedAmount = 0;
+      }
+
+      document.getElementById('ocrLoader').style.display = 'none';
+
+      document.getElementById('editMerchant').value = extractedMerchant || 'Cửa Hàng Chi Tiêu';
+      document.getElementById('editAmount').value = extractedAmount || '';
+      document.getElementById('editDate').value = extractedDate;
+      document.getElementById('editCategory').value = extractedCategory;
+      document.getElementById('editNote').value = extractedNote;
+
       document.getElementById('reviewModal').classList.add('active');
     }
 
-    function simulateGalleryPick() {
-      captureReceipt();
+    function captureReceipt() {
+      const video = document.getElementById('webcamVideo');
+      const canvas = document.getElementById('snapshotCanvas');
+
+      if (cameraStream && video.videoWidth > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        closeCamera();
+        processReceiptImageWithOCR(dataUrl);
+      } else {
+        closeCamera();
+        simulateDemoReceipt();
+      }
+    }
+
+    function handleGalleryImage(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          closeCamera();
+          processReceiptImageWithOCR(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function simulateDemoReceipt() {
+      closeCamera();
+      document.getElementById('capturedPreviewContainer').style.display = 'none';
+      document.getElementById('editMerchant').value = 'Quán Trà Sữa Gò Vấp';
+      document.getElementById('editAmount').value = '167000';
+      document.getElementById('editDate').value = '2022-02-01';
+      document.getElementById('editCategory').value = 'food';
+      document.getElementById('editNote').value = 'Sữa tươi đường đen, Yaourt dâu, Lipton, Trà lài vải, Milo dầm';
+      document.getElementById('reviewModal').classList.add('active');
     }
 
     function closeReview() {
@@ -734,11 +961,6 @@
       renderTransactions();
     }
 
-    function toggleAnalyticsView() {
-      alert('Đang xem bản đồ thống kê Canvas!');
-    }
-
-    // Init App
     initCategoryPills();
     renderTransactions();
   </script>

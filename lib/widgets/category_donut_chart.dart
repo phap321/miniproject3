@@ -169,7 +169,7 @@ class _CategoryDonutChartState extends State<CategoryDonutChart> with SingleTick
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? category.color : Colors.black80,
+                        color: isSelected ? category.color : Colors.black87,
                       ),
                     ),
                   ],
@@ -202,8 +202,7 @@ class _DonutChartPainter extends CustomPainter {
 
     final center = Offset(size.width / 2, size.height / 2);
     final outerRadius = min(size.width, size.height) / 2 - 10;
-    final strokeWidth = 28.0;
-    final innerRadius = outerRadius - strokeWidth;
+    const strokeWidth = 28.0;
 
     double startAngle = -pi / 2;
 

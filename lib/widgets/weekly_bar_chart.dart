@@ -61,7 +61,7 @@ class _WeeklyBarChartState extends State<WeeklyBarChart> with SingleTickerProvid
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Row(
               children: [
-                Icon(Icons.info_outline, size: 16, color: AppTheme.primaryColor),
+                const Icon(Icons.info_outline, size: 16, color: AppTheme.primaryColor),
                 const SizedBox(width: 6),
                 Text(
                   'Chi tiêu ${_dayLabels[_selectedIndex!]}: ',
@@ -130,10 +130,10 @@ class _BarChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double bottomMargin = 28.0;
-    final double topMargin = 20.0;
+    const double bottomMargin = 28.0;
+    const double topMargin = 20.0;
     final double chartHeight = size.height - bottomMargin - topMargin;
-    final double barWidth = 22.0;
+    const double barWidth = 22.0;
     final double stepX = size.width / 7;
 
     // Draw horizontal grid lines (0%, 50%, 100%)
@@ -146,7 +146,7 @@ class _BarChartPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    final textStyle = const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w500);
+    const textStyle = TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w500);
 
     for (int i = 0; i < 7; i++) {
       final double xCenter = stepX * i + stepX / 2;

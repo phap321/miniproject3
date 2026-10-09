@@ -33,15 +33,16 @@ class CropOverlayPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final double cornerLength = 28.0;
-    final double radius = 16.0;
+    const double cornerLength = 28.0;
+    const double radius = 16.0;
+    const radiusObj = Radius.circular(radius);
 
     // Top-Left Corner
     canvas.drawPath(
       Path()
         ..moveTo(left, top + cornerLength)
         ..lineTo(left, top + radius)
-        ..arcToPoint(Offset(left + radius, top), radius: Radius.circular(radius))
+        ..arcToPoint(Offset(left + radius, top), radius: radiusObj)
         ..lineTo(left + cornerLength, top),
       cornerPaint,
     );
@@ -51,7 +52,7 @@ class CropOverlayPainter extends CustomPainter {
       Path()
         ..moveTo(left + cardWidth - cornerLength, top)
         ..lineTo(left + cardWidth - radius, top)
-        ..arcToPoint(Offset(left + cardWidth, top + radius), radius: Radius.circular(radius))
+        ..arcToPoint(Offset(left + cardWidth, top + radius), radius: radiusObj)
         ..lineTo(left + cardWidth, top + cornerLength),
       cornerPaint,
     );
@@ -61,7 +62,7 @@ class CropOverlayPainter extends CustomPainter {
       Path()
         ..moveTo(left, top + cardHeight - cornerLength)
         ..lineTo(left, top + cardHeight - radius)
-        ..arcToPoint(Offset(left + radius, top + cardHeight), radius: Radius.circular(radius), clockwise: false)
+        ..arcToPoint(Offset(left + radius, top + cardHeight), radius: radiusObj, clockwise: false)
         ..lineTo(left + cornerLength, top + cardHeight),
       cornerPaint,
     );
@@ -71,7 +72,7 @@ class CropOverlayPainter extends CustomPainter {
       Path()
         ..moveTo(left + cardWidth - cornerLength, top + cardHeight)
         ..lineTo(left + cardWidth - radius, top + cardHeight)
-        ..arcToPoint(Offset(left + cardWidth, top + cardHeight - radius), radius: Radius.circular(radius), clockwise: false)
+        ..arcToPoint(Offset(left + cardWidth, top + cardHeight - radius), radius: radiusObj, clockwise: false)
         ..lineTo(left + cardWidth, top + cardHeight - cornerLength),
       cornerPaint,
     );
